@@ -1513,6 +1513,20 @@ theorem infiniteStandardThetaMellinAverage_apply (χ : PontryaginDual Iₛ(S)) (
   (exists_infiniteStandardThetaMellinAverage χ).choose_spec f x
 
 /-- Paper: Theorem 6.2.2.1(1), p. 299.
+For trivial S-integer Picard group, an archimedean test tensored with the standard finite
+tests lies in the kernel of the S-local homogeneous theta map exactly when its archimedean
+Mellin average vanishes identically. The character on the S-ideles restricts on the norm-one
+S-ideles to the S-local norm-one character of ω. -/
+private theorem sLocalStandardThetaTensor_mem_ker_iff
+    (_hPic : Subsingleton Picₛ(S)) {ω : PontryaginDual C₁}
+    (hω : NormOneCharacterUnramifiedOutside ω S) (χ : PontryaginDual Iₛ(S))
+    (_hχ : ∀ (g : Nₛ(S)) (y : J₁(S)), y.val = QuotientGroup.mk g.val →
+      χ g.val = sLocalNormOneCharacter S ω hω y) (f : ℬ∞) :
+    sLocalStandardThetaTensor (sIdeleRestriction F S hω.choose) f ∈
+        Kₛω(S, sLocalNormOneCharacter S ω hω) ↔
+      f ∈ (infiniteStandardThetaMellinAverage χ).ker := by sorry
+
+/-- Paper: Theorem 6.2.2.1(1), p. 299.
 Tensoring with the standard finite test identifies the local homogeneous quotient with
 the archimedean quotient by the kernel of the archimedean Mellin average.
 Deviation: This kernel uses the character orientation of §5.2 and the single norm fibre
@@ -1526,7 +1540,46 @@ theorem sLocalStandardThetaTensor_quotient_equiv
     let χS := sLocalNormOneCharacter S ω hω
     let K := (infiniteStandardThetaMellinAverage χ).ker
     ∃ e : (ℬ∞ ⧸ K) ≃L[ℂ] Θₛω(S, χS), ∀ f : ℬ∞,
-      e (K.mkQ f) = (Kₛω(S, χS)).mkQ (sLocalStandardThetaTensor c f) := by sorry
+      e (K.mkQ f) = (Kₛω(S, χS)).mkQ (sLocalStandardThetaTensor c f) := by
+  intro c χS K
+  obtain ⟨T, hT⟩ := sLocalHomogeneousThetaToGlobal_equiv_of_unramified _hPic hω
+  have hq := sLocalStandardThetaTensor_toGlobal_openQuotient _hPic hω
+  let P : ℬ∞ →ₗ[ℂ] Θₛω(S, χS) := (Kₛω(S, χS)).mkQ ∘ₗ sLocalStandardThetaTensor c
+  have hP : IsOpenQuotientMap P := by
+    have hPT : (P : ℬ∞ → Θₛω(S, χS)) =
+        T.symm ∘ fun f ↦ sLocalHomogeneousThetaToGlobal (ω := ω) hω
+          ((Kₛω(S, χS)).mkQ (sLocalStandardThetaTensor c f)) := by
+      funext f
+      apply T.injective
+      simp only [Function.comp_apply, ContinuousLinearEquiv.apply_symm_apply]
+      exact LinearMap.congr_fun hT (P f)
+    rw [hPT]
+    exact T.symm.toHomeomorph.isOpenQuotientMap.comp hq
+  have hker : K = LinearMap.ker P := by
+    ext f
+    exact (sLocalStandardThetaTensor_mem_ker_iff _hPic hω χ _hχ f).symm.trans
+      (Submodule.Quotient.mk_eq_zero _).symm
+  let L : (ℬ∞ ⧸ K) ≃ₗ[ℂ] Θₛω(S, χS) :=
+    (Submodule.quotEquivOfEq _ _ hker).trans (P.quotKerEquivOfSurjective hP.surjective)
+  have hL : ∀ f, L (K.mkQ f) = P f := fun _ ↦ rfl
+  have hK := K.isOpenQuotientMap_mkQL
+  have hcont : Continuous L := by
+    rw [hK.isQuotientMap.continuous_iff]
+    exact hP.continuous.congr fun f ↦ (hL f).symm
+  have hopen : IsOpenMap L := by
+    intro U hU
+    have himg : L '' U = P '' (K.mkQ ⁻¹' U) := by
+      ext y
+      constructor
+      · rintro ⟨u, hu, rfl⟩
+        obtain ⟨f, rfl⟩ := K.mkQ_surjective u
+        exact ⟨f, hu, (hL f).symm⟩
+      · rintro ⟨f, hf, rfl⟩
+        exact ⟨K.mkQ f, hf, hL f⟩
+    rw [himg]
+    exact hP.isOpenMap _ (hU.preimage K.mkQL.continuous)
+  exact ⟨⟨L, hcont, (L.toEquiv.toHomeomorphOfContinuousOpen hcont hopen).symm.continuous⟩,
+    hL⟩
 
 -- TODO(paper-gap): The archimedean output need not be constant on norm fibres
 -- for nontrivial characters. Use a norm section for the logarithmic profile.
